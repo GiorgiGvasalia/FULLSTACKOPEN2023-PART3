@@ -10,6 +10,8 @@ const cors = require('cors')
 
 app.use(cors())
 
+app.use(express.static('dist'))
+
 
 const requestLogger = (request, response, next) => {
   console.log('Method:', request.method)
@@ -52,9 +54,13 @@ let persons = [
   },
 ];
 
-app.get("/api/persons", (request, response) => {
+app.get("/api/persons/", (request, response) => {
   response.json(persons);
 });
+
+app.use((error, req, res, next) => {
+  console.log("error", error)
+})
 
 app.get("/info", (req, res) => {
   const date = new Date();
