@@ -1,92 +1,85 @@
+
+
+//SECOND TRY
+
+// const http = require('http')
+
 const express = require("express");
+
 const app = express();
-
-const morgan = require('morgan')
-
-
-app.use(express.json());
 
 const cors = require('cors')
 
 app.use(cors())
 
-app.use(express.static('dist'))
+app.use(express.json());
 
+const morgan = require("morgan");
 
-const requestLogger = (request, response, next) => {
-  console.log('Method:', request.method)
-  console.log('Path:  ', request.path)
-  console.log('Body:  ', request.body)
-  console.log('---')
-  next()
-}
+app.use(express.static("dist"))
 
-morgan.token('req-body', (req, res) => JSON.stringify(req.body));
+const requestLogger = (req, res, next) => {
+  console.log("Method", req.method);
+  console.log("Path", req.path);
+  console.log("Body", req.body);
+  console.log("___");
+  next();
+};
 
-app.use(
-  morgan(':method :url :status :res[content-length] - :response-time ms :req-body')
-)
+morgan.token("req-body", (req, res) => JSON.stringify(req.body));
 
+app.use(requestLogger);
 
+const postMorganMiddleware = (req, res, next) => {
+  if (req.method === "POST") {
+    // Apply morgan with the custom format for POST requests
+    morgan(
+      ":method :url :status :res[content-length] - :response-time ms :req-body"
+    )(req, res, next);
+  } else {
+    next();
+  }
+};
 
-app.use(requestLogger)
+app.use(postMorganMiddleware);
 
 let persons = [
   {
+    name: "hggggggggg",
+    number: "9888888888",
     id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
   },
   {
+    name: "yu",
+    number: "6677120",
     id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
   },
 ];
 
-app.get("/api/persons/", (request, response) => {
-  response.json(persons);
+app.get("/", (req, res) => {
+  res.send("<h1>SERVER</h1>");
 });
 
-app.use((error, req, res, next) => {
-  console.log("error", error)
-})
-
-app.get("/info", (req, res) => {
-  const date = new Date();
-  const englishDate = date.toLocaleDateString("en-US");
-
-  const htmlResponse = `<p>phonebooke has info for ${persons.length} person <br/> Request happened at ${englishDate} </p>`;
-  const jsonResponse = { date: englishDate };
-
-  res.send(htmlResponse);
-  res.json(jsonResponse);
+app.get("/api/persons", (req, res) => {
+  res.json(persons);
 });
 
 app.get("/api/persons/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: "Invalid ID" });
-  }
-
+  const id = Number(req.params.id);
   const person = persons.find((p) => p.id === id);
 
-  if (!person) {
-    return res.status(404).json({ error: "Person not found" });
+  if (person) {
+    res.json(person);
+  } else {
+    res.status(404).end();
   }
+});
 
-  res.json(person);
+app.delete("/api/persons/:id", (req, res) => {
+  const id = Number(req.params.id);
+  persons = persons.filter((p) => p.id !== id);
+
+  res.status(204).end();
 });
 
 const generateId = () => {
@@ -95,41 +88,26 @@ const generateId = () => {
   return maxId + 1;
 };
 
-app.post("/api/persons", (req, res) => {
+app.post("/api/persons",  (req, res) => {
   const body = req.body;
 
   if (!body.name || !body.number) {
-    return res
-      .status(400)
-      .json({ error: "Please fill required fields." });
-  }
-
-  const numberExists = persons.some((person) => person.number === body.number);
-  if (numberExists) {
-    return res.status(409).json({ error: "Number already exists" });
+    return res.status(400).json({
+      error: "content missing",
+    });
   }
 
   const person = {
-    id: generateId(),
     name: body.name,
     number: body.number,
+    id: generateId(),
   };
 
   persons = persons.concat(person);
   res.json(person);
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-
-  const newPersons = persons.filter((person) => person.id !== id);
-
-  persons = newPersons;
-
-  res.json(persons);
-});
-
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
