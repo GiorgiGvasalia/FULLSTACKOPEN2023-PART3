@@ -1,22 +1,17 @@
-
-
-//SECOND TRY
-
-// const http = require('http')
-
+require("dotenv").config();
 const express = require("express");
-
 const app = express();
+const cors = require("cors");
+const Person = require("./models/person");
+// const mongoose = require('mongoose')
 
-const cors = require('cors')
-
-app.use(cors())
+app.use(cors());
 
 app.use(express.json());
 
 const morgan = require("morgan");
 
-app.use(express.static("dist"))
+app.use(express.static("dist"));
 
 const requestLogger = (req, res, next) => {
   console.log("Method", req.method);
@@ -61,25 +56,49 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/persons", (req, res) => {
-  res.json(persons);
+  Person.find({}).then((persons) => {
+    res.json(persons.map((p) => p.toJSON()));
+  });
 });
 
 app.get("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const person = persons.find((p) => p.id === id);
-
-  if (person) {
+  Person.findById(req.params.id).then((person) => {
     res.json(person);
-  } else {
-    res.status(404).end();
-  }
+  });
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  persons = persons.filter((p) => p.id !== id);
+app.put("/api/persons/:id", (req, res, next) => {
+  const { name, number } = req.body;
 
-  res.status(204).end();
+  // Find the person by name
+  Person.findOne({ name: name })
+    .then((person) => {
+      if (!person) {
+        // If the person with the given name doesn't exist, return a 404 response
+        return res.status(404).json({ error: "Person not found." });
+      }
+
+      // Update the person's number
+      person.number = number;
+
+      // Save the updated person
+      person
+        .save()
+        .then((updatedPerson) => {
+          res.json(updatedPerson.toJSON());
+        })
+        .catch((error) => next(error));
+    })
+    .catch((error) => next(error));
+});
+
+
+app.delete("/api/persons/:id", (req, res, next) => {
+  Person.findByIdAndRemove(req.params.id)
+    .then(result => {
+      res.status(204).end()
+    })
+    .catch(error => next(error))
 });
 
 const generateId = () => {
@@ -88,7 +107,7 @@ const generateId = () => {
   return maxId + 1;
 };
 
-app.post("/api/persons",  (req, res) => {
+app.post("/api/persons", (req, res) => {
   const body = req.body;
 
   if (!body.name || !body.number) {
@@ -97,14 +116,15 @@ app.post("/api/persons",  (req, res) => {
     });
   }
 
-  const person = {
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: generateId(),
-  };
+  });
 
-  persons = persons.concat(person);
-  res.json(person);
+
+  person.save().then((savedPerson) => {
+    res.json(savedPerson);
+  });
 });
 
 const PORT = process.env.PORT || 3001;
