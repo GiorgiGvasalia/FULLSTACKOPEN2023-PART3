@@ -3,7 +3,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const Person = require("./models/person");
-// const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 app.use(cors());
 
@@ -67,21 +67,33 @@ app.get("/api/persons/:id", (req, res) => {
   });
 });
 
+app.get("/info", (request, response) => {
+  const currentDate = new Date().toLocaleString();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  Person.find({}).then((persons) => {
+    response.send(
+      `
+          <div>
+              <p>Phonebook has info for ${persons.length} people</p>
+          </div>
+          <div>
+              <p>${currentDate} (${timeZone})</p>
+          </div>`
+    );
+  });
+});
+
 app.put("/api/persons/:id", (req, res, next) => {
   const { name, number } = req.body;
 
-  // Find the person by name
   Person.findOne({ name: name })
     .then((person) => {
       if (!person) {
-        // If the person with the given name doesn't exist, return a 404 response
         return res.status(404).json({ error: "Person not found." });
       }
 
-      // Update the person's number
       person.number = number;
 
-      // Save the updated person
       person
         .save()
         .then((updatedPerson) => {
@@ -92,13 +104,12 @@ app.put("/api/persons/:id", (req, res, next) => {
     .catch((error) => next(error));
 });
 
-
 app.delete("/api/persons/:id", (req, res, next) => {
   Person.findByIdAndRemove(req.params.id)
-    .then(result => {
-      res.status(204).end()
+    .then((result) => {
+      res.status(204).end();
     })
-    .catch(error => next(error))
+    .catch((error) => next(error));
 });
 
 const generateId = () => {
@@ -121,11 +132,21 @@ app.post("/api/persons", (req, res) => {
     number: body.number,
   });
 
-
   person.save().then((savedPerson) => {
     res.json(savedPerson);
   });
 });
+
+const errorHandler = (error, req, res, next) => {
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
+  }
+  next(error);
+};
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
